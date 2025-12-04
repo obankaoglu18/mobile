@@ -4,18 +4,40 @@
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "build": "tsc"
   },
   "dependencies": {
+    "@gorhom/bottom-sheet": "^5.2.7",
+    "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-navigation/native": "^7.1.21",
+    "@react-navigation/native-stack": "^7.6.4",
+    "@rnmapbox/maps": "^10.2.7",
+    "@turf/helpers": "^6.5.0",
     "expo": "~54.0.25",
+    "expo-image-picker": "~17.0.8",
+    "expo-linear-gradient": "^15.0.7",
+    "expo-location": "^19.0.7",
     "expo-status-bar": "~3.0.8",
+    "mapbox-gl": "^2.15.0",
     "react": "19.1.0",
-    "react-native": "0.81.5"
+    "react-dom": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-gesture-handler": "^2.29.1",
+    "react-native-reanimated": "^4.1.5",
+    "react-native-safe-area-context": "^5.6.2",
+    "react-native-screens": "^4.18.0",
+    "react-native-web": "^0.21.2",
+    "react-native-worklets-core": "^1.6.2"
   },
   "devDependencies": {
+    "@types/estree": "^1.0.8",
     "@types/react": "~19.1.0",
+    "nativewind": "^4.2.1",
+    "semver": "^6.3.1",
+    "tailwindcss": "^3.3.2",
     "typescript": "~5.9.2"
   },
   "private": true
