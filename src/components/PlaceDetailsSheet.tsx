@@ -37,6 +37,7 @@ interface Review {
 interface PlaceDetailsSheetProps {
     place: Place | null;
     onClose: () => void;
+    onUpdate?: () => void;
 }
 
 // Mock images for demo fallback
@@ -46,7 +47,7 @@ const MOCK_IMAGES = [
     'https://images.unsplash.com/photo-1519114097352-38159f912d6c?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
 ];
 
-export const PlaceDetailsSheet = ({ place, onClose }: PlaceDetailsSheetProps) => {
+export const PlaceDetailsSheet = ({ place, onClose, onUpdate }: PlaceDetailsSheetProps) => {
     const slideAnim = useRef(new Animated.Value(height)).current;
     const navigation = useNavigation<any>();
     const [reviews, setReviews] = useState<Review[]>([]);
@@ -54,6 +55,8 @@ export const PlaceDetailsSheet = ({ place, onClose }: PlaceDetailsSheetProps) =>
     const [loadingReviews, setLoadingReviews] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [placeImages, setPlaceImages] = useState<string[]>([]);
+    const [isBookmarked, setIsBookmarked] = useState(false);
+    const [loadingBookmark, setLoadingBookmark] = useState(false);
 
     useEffect(() => {
         if (place) {
@@ -66,6 +69,7 @@ export const PlaceDetailsSheet = ({ place, onClose }: PlaceDetailsSheetProps) =>
 
             fetchReviews();
             fetchAddress();
+            checkBookmarkStatus();
             setPlaceImages(place.images && place.images.length > 0 ? place.images : [place.imageUrl || MOCK_IMAGES[0], ...MOCK_IMAGES.slice(1)]);
         } else {
             Animated.timing(slideAnim, {
@@ -75,6 +79,68 @@ export const PlaceDetailsSheet = ({ place, onClose }: PlaceDetailsSheetProps) =>
             }).start();
         }
     }, [place]);
+
+    const checkBookmarkStatus = async () => {
+        if (!place) return;
+        try {
+            const userId = await AsyncStorage.getItem('userId');
+            if (!userId) return;
+
+            const response = await fetch(`${API_URL}/bookmarks`, {
+                headers: { 'x-user-id': userId }
+            });
+            if (response.ok) {
+                const bookmarks = await response.json();
+                const isSaved = bookmarks.some((b: any) => b.id === place.id);
+                setIsBookmarked(isSaved);
+            }
+        } catch (error) {
+            console.error('Failed to check bookmark status:', error);
+        }
+    };
+
+    const toggleBookmark = async () => {
+        if (!place) return;
+        setLoadingBookmark(true);
+        try {
+            const userId = await AsyncStorage.getItem('userId');
+            if (!userId) {
+                Alert.alert('Login Required', 'Please login to bookmark places.');
+                return;
+            }
+
+            if (isBookmarked) {
+                // Remove bookmark
+                const response = await fetch(`${API_URL}/bookmarks/${place.id}`, {
+                    method: 'DELETE',
+                    headers: { 'x-user-id': userId }
+                });
+                if (response.ok) {
+                    setIsBookmarked(false);
+                    onUpdate?.();
+                }
+            } else {
+                // Add bookmark
+                const response = await fetch(`${API_URL}/bookmarks`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-user-id': userId
+                    },
+                    body: JSON.stringify({ placeId: place.id })
+                });
+                if (response.ok) {
+                    setIsBookmarked(true);
+                    onUpdate?.();
+                }
+            }
+        } catch (error) {
+            console.error('Failed to toggle bookmark:', error);
+            Alert.alert('Error', 'Failed to update bookmark');
+        } finally {
+            setLoadingBookmark(false);
+        }
+    };
 
     const fetchReviews = async () => {
         if (!place) return;
@@ -214,9 +280,20 @@ export const PlaceDetailsSheet = ({ place, onClose }: PlaceDetailsSheetProps) =>
                             <Text style={styles.addressText}>📍 {address}</Text>
                         ) : null}
                     </View>
-                    <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                        <Text style={styles.closeButtonText}>✕</Text>
-                    </TouchableOpacity>
+                    <View style={{ alignItems: 'flex-end' }}>
+                        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                            <Text style={styles.closeButtonText}>✕</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={toggleBookmark}
+                            style={[styles.bookmarkButton, isBookmarked && styles.bookmarkButtonActive]}
+                            disabled={loadingBookmark}
+                        >
+                            <Text style={[styles.bookmarkIcon, isBookmarked && styles.bookmarkIconActive]}>
+                                {isBookmarked ? '♥' : '♡'}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
 
                 {/* Images Horizontal Scroll */}
@@ -400,6 +477,24 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#64748B',
         fontWeight: '600',
+    },
+    bookmarkButton: {
+        padding: 8,
+        backgroundColor: '#F1F5F9',
+        borderRadius: 20,
+        marginTop: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    bookmarkButtonActive: {
+        backgroundColor: '#FFE4E6',
+    },
+    bookmarkIcon: {
+        fontSize: 20,
+        color: '#94A3B8',
+    },
+    bookmarkIconActive: {
+        color: '#E11D48',
     },
     imageScroll: {
         marginBottom: 24,

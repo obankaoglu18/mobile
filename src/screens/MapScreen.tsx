@@ -4,6 +4,7 @@ import Mapbox from '@rnmapbox/maps';
 import * as Location from 'expo-location';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PlaceDetailsSheet } from '../components/PlaceDetailsSheet';
 import { MapBottomSheet } from '../components/MapBottomSheet';
 import { API_URL } from '../config/api';
@@ -29,24 +30,38 @@ export const MapScreen = () => {
     const [followUser, setFollowUser] = useState(true);
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [isSheetExpanded, setIsSheetExpanded] = useState(false);
+    const [bookmarks, setBookmarks] = useState<any[]>([]);
 
-    // Fetch places from API
+    const fetchData = useCallback(async () => {
+        try {
+            // Fetch places
+            const placesRes = await fetch(`${API_URL}/places`);
+            const placesData = await placesRes.json();
+            setPlaces(placesData);
+
+            // Fetch bookmarks
+            const userId = await AsyncStorage.getItem('userId');
+            if (userId) {
+                const bookmarksRes = await fetch(`${API_URL}/bookmarks`, {
+                    headers: { 'x-user-id': userId }
+                });
+                if (bookmarksRes.ok) {
+                    const bookmarksData = await bookmarksRes.json();
+                    setBookmarks(bookmarksData);
+                }
+            }
+        } catch (error) {
+            console.error('Failed to fetch data:', error);
+        }
+    }, []);
+
+    // Fetch places and bookmarks from API
     useFocusEffect(
         useCallback(() => {
-            const fetchPlaces = async () => {
-                try {
-                    const response = await fetch(`${API_URL}/places`);
-                    const data = await response.json();
-                    setPlaces(data);
-                } catch (error) {
-                    console.error('Failed to fetch places:', error);
-                    Alert.alert('Error', 'Failed to load places. Make sure the API is running.');
-                }
-            };
-            fetchPlaces();
+            fetchData();
             // Clear temp location when returning to map
             setTempLocation(null);
-        }, [])
+        }, [fetchData])
     );
 
     useEffect(() => {
@@ -361,11 +376,12 @@ export const MapScreen = () => {
                         selectedCategory={selectedCategory}
                         onCategorySelect={setSelectedCategory}
                         onChange={handleSheetChange}
+                        bookmarks={bookmarks}
                     />
                 )}
 
                 {/* Place Details Sheet (Modal/Overlay) */}
-                <PlaceDetailsSheet place={selectedPlace} onClose={() => setSelectedPlace(null)} />
+                <PlaceDetailsSheet place={selectedPlace} onClose={() => setSelectedPlace(null)} onUpdate={fetchData} />
             </View>
         </GestureHandlerRootView>
     );

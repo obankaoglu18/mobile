@@ -1,5 +1,5 @@
-import React, { useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import React, { useMemo, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { CategoryFilter } from './CategoryFilter';
 import { PlaceCard } from './PlaceCard';
@@ -12,22 +12,25 @@ interface MapBottomSheetProps {
     selectedCategory: string | null;
     onCategorySelect: (category: string | null) => void;
     onChange?: (index: number) => void;
+    bookmarks: any[];
 }
 
 const CATEGORIES = ['Park', 'Cafe', 'Library', 'Museum', 'Plaza'];
 
-export const MapBottomSheet = ({ places, onPlaceSelect, selectedCategory, onCategorySelect, onChange }: MapBottomSheetProps) => {
+export const MapBottomSheet = ({ places, onPlaceSelect, selectedCategory, onCategorySelect, onChange, bookmarks }: MapBottomSheetProps) => {
     // ref
     const bottomSheetRef = useRef<BottomSheet>(null);
+    const [showBookmarks, setShowBookmarks] = useState(false);
 
     // variables
     const snapPoints = useMemo(() => ['15%', '45%', '90%'], []);
 
     // Filter places
     const filteredPlaces = useMemo(() => {
+        if (showBookmarks) return bookmarks;
         if (!selectedCategory) return places;
         return places.filter(p => p.category === selectedCategory);
-    }, [places, selectedCategory]);
+    }, [places, selectedCategory, showBookmarks, bookmarks]);
 
     return (
         <BottomSheet
@@ -39,29 +42,40 @@ export const MapBottomSheet = ({ places, onPlaceSelect, selectedCategory, onCate
             onChange={onChange}
         >
             <View style={styles.header}>
-                <Text style={styles.title}>Explore Nearby</Text>
+                <Text style={styles.title}>{showBookmarks ? 'My Bookmarks' : 'Explore Nearby'}</Text>
+                <TouchableOpacity onPress={() => setShowBookmarks(!showBookmarks)}>
+                    <Text style={styles.bookmarkButtonText}>
+                        {showBookmarks ? 'Show All' : 'My Bookmarks'}
+                    </Text>
+                </TouchableOpacity>
             </View>
 
-            <CategoryFilter
-                categories={CATEGORIES}
-                selectedCategory={selectedCategory}
-                onSelect={(cat) => onCategorySelect(cat === 'All' ? null : cat)}
-            />
+            {!showBookmarks && (
+                <CategoryFilter
+                    categories={CATEGORIES}
+                    selectedCategory={selectedCategory}
+                    onSelect={(cat) => onCategorySelect(cat === 'All' ? null : cat)}
+                />
+            )}
 
             <BottomSheetScrollView contentContainerStyle={styles.contentContainer}>
-                {/* Smart Suggestions (Mock) */}
-                <View style={styles.suggestionContainer}>
-                    <Text style={styles.sectionTitle}>For You</Text>
-                    <View style={styles.suggestionCard}>
-                        <Text style={styles.suggestionIcon}>☀️</Text>
-                        <View>
-                            <Text style={styles.suggestionTitle}>Sunny Day!</Text>
-                            <Text style={styles.suggestionText}>Perfect for a walk in the park.</Text>
+                {!showBookmarks && (
+                    <View style={styles.suggestionContainer}>
+                        <Text style={styles.sectionTitle}>For You</Text>
+                        <View style={styles.suggestionCard}>
+                            <Text style={styles.suggestionIcon}>☀️</Text>
+                            <View>
+                                <Text style={styles.suggestionTitle}>Sunny Day!</Text>
+                                <Text style={styles.suggestionText}>Perfect for a walk in the park.</Text>
+                            </View>
                         </View>
                     </View>
-                </View>
+                )}
 
-                <Text style={styles.sectionTitle}>Nearby Places</Text>
+                <Text style={styles.sectionTitle}>
+                    {showBookmarks ? `${bookmarks.length} Saved Places` : 'Nearby Places'}
+                </Text>
+
                 {filteredPlaces.map((place) => (
                     <PlaceCard
                         key={place.id}
@@ -72,7 +86,9 @@ export const MapBottomSheet = ({ places, onPlaceSelect, selectedCategory, onCate
 
                 {filteredPlaces.length === 0 && (
                     <View style={styles.emptyState}>
-                        <Text style={styles.emptyText}>No places found in this category.</Text>
+                        <Text style={styles.emptyText}>
+                            {showBookmarks ? 'No bookmarks yet.' : 'No places found in this category.'}
+                        </Text>
                     </View>
                 )}
 
@@ -99,11 +115,19 @@ const styles = StyleSheet.create({
     header: {
         paddingHorizontal: 24,
         paddingBottom: 16,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
     },
     title: {
         fontSize: 24,
         fontWeight: '800',
         color: '#0F172A',
+    },
+    bookmarkButtonText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#0F766E',
     },
     contentContainer: {
         paddingHorizontal: 24,
