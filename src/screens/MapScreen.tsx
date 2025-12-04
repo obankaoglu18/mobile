@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { View, Text, Alert, TouchableOpacity, StyleSheet, TextInput, Keyboard } from 'react-native';
+import { View, Text, Alert, TouchableOpacity, StyleSheet, TextInput, Keyboard, ScrollView } from 'react-native';
 import Mapbox from '@rnmapbox/maps';
 import * as Location from 'expo-location';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -12,6 +12,8 @@ import { featureCollection, point } from '@turf/helpers';
 
 // TODO: Replace with valid public access token
 Mapbox.setAccessToken('pk.eyJ1Ijoib3phbnNpbmEiLCJhIjoiY21pYXp0YnljMHJmMzJsc2EzZ3YybDRxMSJ9.4UajXCbMzWw7r6ygiX-0Aw');
+
+const QUICK_FILTERS = ['Park', 'Cafe', 'Restaurant', 'Museum', 'Beach', 'Bank', 'Library'];
 
 export const MapScreen = () => {
     const [location, setLocation] = useState<Location.LocationObject | null>(null);
@@ -26,6 +28,7 @@ export const MapScreen = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [followUser, setFollowUser] = useState(true);
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+    const [isSheetExpanded, setIsSheetExpanded] = useState(false);
 
     // Fetch places from API
     useFocusEffect(
@@ -160,6 +163,15 @@ export const MapScreen = () => {
         });
     };
 
+    const handleSheetChange = (index: number) => {
+        // Assuming snap points are ['15%', '45%', '90%']
+        // index 0 = 15% (collapsed)
+        // index 1 = 45% (half)
+        // index 2 = 90% (full)
+        // We want to hide buttons when it's not collapsed (index > 0)
+        setIsSheetExpanded(index > 0);
+    };
+
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
             <View style={{ flex: 1 }}>
@@ -243,29 +255,57 @@ export const MapScreen = () => {
                 </Mapbox.MapView>
 
                 {/* Top Bar with Search and Profile */}
-                <View style={styles.topBar}>
-                    <View style={styles.searchContainer}>
-                        <Text style={styles.searchIcon}>🔍</Text>
-                        <TextInput
-                            style={styles.searchInput}
-                            placeholder="Search places..."
-                            placeholderTextColor="#94A3B8"
-                            value={searchQuery}
-                            onChangeText={setSearchQuery}
-                            returnKeyType="search"
-                            onSubmitEditing={handleSearchSubmit}
-                        />
-                    </View>
-                    <TouchableOpacity
-                        style={styles.profileButton}
-                        onPress={() => setMenuVisible(!menuVisible)}
-                    >
-                        <View style={styles.hamburgerIcon}>
-                            <View style={styles.hamburgerLine} />
-                            <View style={styles.hamburgerLine} />
-                            <View style={styles.hamburgerLine} />
+                <View style={styles.topBarContainer}>
+                    <View style={styles.topBar}>
+                        <View style={styles.searchContainer}>
+                            <Text style={styles.searchIcon}>🔍</Text>
+                            <TextInput
+                                style={styles.searchInput}
+                                placeholder="Search places..."
+                                placeholderTextColor="#94A3B8"
+                                value={searchQuery}
+                                onChangeText={setSearchQuery}
+                                returnKeyType="search"
+                                onSubmitEditing={handleSearchSubmit}
+                            />
                         </View>
-                    </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.profileButton}
+                            onPress={() => setMenuVisible(!menuVisible)}
+                        >
+                            <View style={styles.hamburgerIcon}>
+                                <View style={styles.hamburgerLine} />
+                                <View style={styles.hamburgerLine} />
+                                <View style={styles.hamburgerLine} />
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Quick Filters */}
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        style={styles.quickFilters}
+                        contentContainerStyle={styles.quickFiltersContent}
+                    >
+                        {QUICK_FILTERS.map((category) => (
+                            <TouchableOpacity
+                                key={category}
+                                style={[
+                                    styles.filterChip,
+                                    selectedCategory === category && styles.filterChipSelected
+                                ]}
+                                onPress={() => setSelectedCategory(selectedCategory === category ? null : category)}
+                            >
+                                <Text style={[
+                                    styles.filterChipText,
+                                    selectedCategory === category && styles.filterChipTextSelected
+                                ]}>
+                                    {category}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
                 </View>
 
                 {/* Menu Popup */}
@@ -284,21 +324,34 @@ export const MapScreen = () => {
                     </View>
                 )}
 
-                {/* Location Button */}
-                <TouchableOpacity
-                    style={styles.locationButton}
-                    onPress={handleLocationPress}
-                >
-                    <Text style={styles.locationButtonText}>📍</Text>
-                </TouchableOpacity>
+                {/* Location Status */}
+                {!location && (
+                    <View style={styles.locationStatus}>
+                        <Text style={styles.locationText}>
+                            {permissionStatus === 'granted' ? 'Locating...' : 'Waiting for location permission...'}
+                        </Text>
+                    </View>
+                )}
 
-                {/* Add Button */}
-                <TouchableOpacity
-                    style={styles.addButton}
-                    onPress={() => navigation.navigate('AddPlace', { selectedLocation: tempLocation })}
-                >
-                    <Text style={styles.addButtonText}>+</Text>
-                </TouchableOpacity>
+                {/* Location Button - Hidden when sheet is expanded */}
+                {!isSheetExpanded && (
+                    <TouchableOpacity
+                        style={styles.locationButton}
+                        onPress={handleLocationPress}
+                    >
+                        <Text style={styles.locationButtonText}>📍</Text>
+                    </TouchableOpacity>
+                )}
+
+                {/* Add Button - Hidden when sheet is expanded */}
+                {!isSheetExpanded && (
+                    <TouchableOpacity
+                        style={styles.addButton}
+                        onPress={() => navigation.navigate('AddPlace', { selectedLocation: tempLocation })}
+                    >
+                        <Text style={styles.addButtonText}>+</Text>
+                    </TouchableOpacity>
+                )}
 
                 {/* Persistent Bottom Sheet */}
                 {!selectedPlace && (
@@ -307,6 +360,7 @@ export const MapScreen = () => {
                         onPlaceSelect={handlePlaceSelect}
                         selectedCategory={selectedCategory}
                         onCategorySelect={setSelectedCategory}
+                        onChange={handleSheetChange}
                     />
                 )}
 
@@ -318,15 +372,19 @@ export const MapScreen = () => {
 };
 
 const styles = StyleSheet.create({
-    topBar: {
+    topBarContainer: {
         position: 'absolute',
         top: 60,
-        left: 20,
-        right: 20,
+        left: 0,
+        right: 0,
+        zIndex: 10,
+    },
+    topBar: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        zIndex: 10,
+        paddingHorizontal: 20,
+        marginBottom: 12,
     },
     searchContainer: {
         flex: 1,
@@ -377,6 +435,38 @@ const styles = StyleSheet.create({
         backgroundColor: '#0F766E',
         borderRadius: 2,
     },
+    quickFilters: {
+        paddingHorizontal: 20,
+    },
+    quickFiltersContent: {
+        paddingRight: 20,
+        gap: 8,
+    },
+    filterChip: {
+        backgroundColor: 'white',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+        borderWidth: 1,
+        borderColor: 'transparent',
+    },
+    filterChipSelected: {
+        backgroundColor: '#0F766E',
+        borderColor: '#0F766E',
+    },
+    filterChipText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#475569',
+    },
+    filterChipTextSelected: {
+        color: 'white',
+    },
     menuPopup: {
         position: 'absolute',
         top: 120,
@@ -406,6 +496,25 @@ const styles = StyleSheet.create({
         height: 1,
         backgroundColor: '#E2E8F0',
         marginVertical: 4,
+    },
+    locationStatus: {
+        position: 'absolute',
+        bottom: 100,
+        alignSelf: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    locationText: {
+        color: '#64748B',
+        fontSize: 12,
+        fontWeight: '500',
     },
     locationButton: {
         position: 'absolute',

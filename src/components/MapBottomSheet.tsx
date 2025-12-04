@@ -11,11 +11,12 @@ interface MapBottomSheetProps {
     onPlaceSelect: (place: any) => void;
     selectedCategory: string | null;
     onCategorySelect: (category: string | null) => void;
+    onChange?: (index: number) => void;
 }
 
 const CATEGORIES = ['Park', 'Cafe', 'Library', 'Museum', 'Plaza'];
 
-export const MapBottomSheet = ({ places, onPlaceSelect, selectedCategory, onCategorySelect }: MapBottomSheetProps) => {
+export const MapBottomSheet = ({ places, onPlaceSelect, selectedCategory, onCategorySelect, onChange }: MapBottomSheetProps) => {
     // ref
     const bottomSheetRef = useRef<BottomSheet>(null);
 
@@ -35,6 +36,7 @@ export const MapBottomSheet = ({ places, onPlaceSelect, selectedCategory, onCate
             snapPoints={snapPoints}
             backgroundStyle={styles.background}
             handleIndicatorStyle={styles.handle}
+            onChange={onChange}
         >
             <View style={styles.header}>
                 <Text style={styles.title}>Explore Nearby</Text>
